@@ -9,14 +9,38 @@
   left: 0;
   top: 0;
   z-index: 100;
-  transition:
-    transform 0.3s ease,
-    width 0.3s ease;
   border-right: 1px solid #1e2a45;
 }
 
-.sidebar.closed {
-  transform: translateX(-100%);
+/* Mobile overlay */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+  touch-action: none; /* Prevent scrolling behind overlay */
+  -webkit-tap-highlight-color: transparent; /* Remove tap highlight on iOS */
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    z-index: 1000;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.3);
+  }
+  
+  .sidebar-overlay {
+    display: block;
+  }
+}
+
+@media (max-width: 480px) {
+  .sidebar {
+    width: 280px; /* Slightly wider for better mobile experience */
+  }
 }
 
 .sidebar-top {

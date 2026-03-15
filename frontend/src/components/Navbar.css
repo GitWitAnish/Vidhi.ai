@@ -12,6 +12,75 @@
   border-bottom: 1px solid #1e2a45;
 }
 
+/* Sidebar toggle button visibility */
+.navbar-btn.sidebar-toggle {
+  display: flex;
+}
+
+.navbar-btn.sidebar-toggle.hidden {
+  display: none;
+}
+
+.navbar-btn.sidebar-toggle.visible {
+  display: flex;
+}
+
+/* Mobile: always show toggle */
+@media (max-width: 768px) {
+  .navbar-btn.sidebar-toggle {
+    display: flex !important;
+  }
+  
+  .navbar-btn.sidebar-toggle.hidden {
+    display: flex !important;
+  }
+}
+
+/* Desktop: show only when sidebar is closed */
+@media (min-width: 769px) {
+  .navbar-btn.sidebar-toggle.hidden {
+    display: none;
+  }
+  
+  .navbar-btn.sidebar-toggle.visible {
+    display: flex;
+  }
+}
+
+@media (max-width: 768px) {
+  .navbar {
+    padding: 0 0.75rem;
+    height: 52px;
+    flex-wrap: wrap;
+  }
+  
+  .navbar-left {
+    flex: 1;
+    min-width: 0;
+  }
+  
+  .navbar-right {
+    gap: 0.125rem;
+  }
+  
+  .navbar-title {
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .navbar {
+    padding: 0 0.5rem;
+    height: 48px;
+  }
+  
+  .navbar-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 0.375rem;
+  }
+}
+
 .navbar-left {
   display: flex;
   align-items: center;

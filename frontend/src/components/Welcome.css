@@ -16,6 +16,42 @@
   width: 100%;
 }
 
+@media (max-width: 768px) {
+  .welcome-container {
+    padding: 1.5rem 1rem;
+  }
+  
+  .welcome-title {
+    font-size: 1.5rem;
+  }
+  
+  .welcome-subtitle {
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .welcome-container {
+    padding: 1rem 0.75rem;
+  }
+  
+  .welcome-logo-wrapper {
+    width: 56px;
+    height: 56px;
+    margin-bottom: 1rem;
+  }
+  
+  .welcome-title {
+    font-size: 1.375rem;
+  }
+  
+  .welcome-subtitle {
+    font-size: 0.875rem;
+    margin-bottom: 1.25rem;
+  }
+}
+
 .welcome-logo-wrapper {
   width: 72px;
   height: 72px;

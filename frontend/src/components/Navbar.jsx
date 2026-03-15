@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { PanelLeft, Share, MoreHorizontal, Layers, List } from "lucide-react";
 import logo from "/logo.jpeg";
@@ -10,6 +10,17 @@ function Navbar({
   showSubcategories,
   onToggleSubcategories,
 }) {
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   return (
     <motion.nav
       className="navbar"
@@ -18,19 +29,17 @@ function Navbar({
       transition={{ duration: 0.4 }}
     >
       <div className="navbar-left">
-        {!sidebarOpen && (
-          <motion.button
-            className="navbar-btn"
-            onClick={onToggleSidebar}
-            aria-label="Open sidebar"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-          >
-            <PanelLeft size={20} />
-          </motion.button>
-        )}
+        <motion.button
+          className={`navbar-btn sidebar-toggle ${!sidebarOpen || isMobile ? "visible" : "hidden"}`}
+          onClick={onToggleSidebar}
+          aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+        >
+          <PanelLeft size={20} />
+        </motion.button>
         <motion.img
           src={logo}
           alt="VIDHI.AI"

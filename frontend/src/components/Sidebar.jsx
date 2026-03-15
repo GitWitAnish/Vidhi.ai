@@ -5,6 +5,8 @@ import logo from "/logo.jpeg";
 import "./Sidebar.css";
 
 function Sidebar({ isOpen, onToggle, onNewChat }) {
+  const sidebarWidth = window.innerWidth <= 480 ? 280 : 260;
+
   return (
     <>
       {/* Overlay for mobile */}
@@ -22,9 +24,9 @@ function Sidebar({ isOpen, onToggle, onNewChat }) {
       </AnimatePresence>
 
       <motion.aside
-        className={`sidebar ${isOpen ? "open" : "closed"}`}
-        initial={{ x: -260 }}
-        animate={{ x: isOpen ? 0 : -260 }}
+        className="sidebar"
+        initial={false}
+        animate={{ x: isOpen ? 0 : -(sidebarWidth + 20) }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
       >
         <motion.div

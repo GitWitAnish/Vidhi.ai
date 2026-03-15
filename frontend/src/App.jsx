@@ -12,9 +12,23 @@ import "./App.css";
 function App() {
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth > 768);
   const [showSubcategories, setShowSubcategories] = useState(false);
   const messagesEndRef = useRef(null);
+
+  // Handle window resize for responsive design
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth <= 768;
+      setIsMobile(mobile);
+    };
+
+    window.addEventListener("resize", handleResize);
+    handleResize();
+
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -25,10 +39,15 @@ function App() {
   }, [messages]);
 
   const handleNewChat = () => {
-    setMessages([]);
+    window.location.reload();
   };
 
   const handleSendMessage = async (content) => {
+    // Auto-close sidebar on mobile when sending a message
+    if (isMobile) {
+      setSidebarOpen(false);
+    }
+
     // Add user message
     const userMessage = { role: "user", content };
     setMessages((prev) => [...prev, userMessage]);
@@ -62,20 +81,6 @@ function App() {
     // When a service is clicked, send a message asking about it
     const query = `Tell me about ${service.service_name}`;
     handleSendMessage(query);
-    setShowCategories(false);
-  };
-
-  const handleToggleCategories = () => {
-    setShowCategories(!showCategories);
-    if (!showCategories) {
-      setMessages([]);
-    }
-  };
-
-  const handleToggleCategoriesMode = () => {
-    setCategoriesViewMode((prev) =>
-      prev === "categories" ? "subcategories" : "categories",
-    );
   };
 
   return (

@@ -20,6 +20,46 @@
   margin-left: 0;
 }
 
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+  .app {
+    flex-direction: column;
+    height: 100vh;
+    height: 100svh; /* Use safe viewport height when supported */
+  }
+  
+  .main-content {
+    margin-left: 0 !important; /* Force no left margin on mobile */
+    height: 100vh;
+    height: 100svh; /* Use safe viewport height when supported */
+    max-height: 100vh;
+    max-height: 100svh;
+  }
+  
+  .main-content.sidebar-closed {
+    margin-left: 0;
+  }
+  
+  .chat-container {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0; /* Allow flex shrinking */
+  }
+}
+
+/* Desktop specific rules */
+@media (min-width: 769px) {
+  .main-content {
+    margin-left: 260px;
+  }
+  
+  .main-content.sidebar-closed {
+    margin-left: 0;
+  }
+}
+
 .chat-container {
   flex: 1;
   overflow-y: auto;
@@ -43,6 +83,40 @@
   max-width: 48rem;
   margin: 0 auto;
   width: 100%;
+}
+
+@media (max-width: 768px) {
+  .messages-container {
+    padding: 0 0.75rem;
+  }
+  
+  .message {
+    gap: 1rem;
+    padding: 1rem 0;
+  }
+  
+  .message-avatar {
+    width: 24px;
+    height: 24px;
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .messages-container {
+    padding: 0 0.5rem;
+  }
+  
+  .message {
+    gap: 0.75rem;
+    padding: 0.75rem 0;
+  }
+  
+  .message-avatar {
+    width: 20px;
+    height: 20px;
+    font-size: 0.625rem;
+  }
 }
 
 @keyframes fadeIn {
