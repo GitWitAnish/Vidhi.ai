@@ -1,7 +1,3 @@
-"""
-FastAPI backend for Nepal Legal AI
-Provides REST API endpoints for the React frontend
-"""
 
 from __future__ import annotations
 
@@ -148,7 +144,7 @@ async def search_and_answer(request: SearchRequest):
             except Exception as e:
                 print(f"[Search] ERROR during LLM answer generation: {e}")
                 return SearchResponse(
-                    answer=f"⚠️ Error generating response: {e}",
+                    answer=f" Error generating response: {e}",
                     sources=sources_text
                 )
         else:

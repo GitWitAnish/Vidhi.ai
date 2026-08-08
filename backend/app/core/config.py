@@ -1,7 +1,3 @@
-"""
-Configuration settings for the RAG application.
-Uses Pydantic Settings for environment variable management.
-"""
 
 from pydantic_settings import BaseSettings
 from pathlib import Path
@@ -12,7 +8,7 @@ class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
     
     # App settings
-    APP_NAME: str = "Nyaya.exe RAG API"
+    APP_NAME: str = "Vidhi.ai RAG API"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = True
     

@@ -1,7 +1,3 @@
-"""
-Pydantic models for API request/response validation.
-These models ensure type safety and automatic documentation in FastAPI.
-"""
 
 from pydantic import BaseModel, Field
 from typing import List, Optional

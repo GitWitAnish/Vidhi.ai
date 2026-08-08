@@ -52,7 +52,7 @@ app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
     description="""
-    ## Nyaya.exe RAG API
+    ## Vidhi.ai RAG API
     
     A RAG (Retrieval-Augmented Generation) API for querying Nepali legal documents.
     
