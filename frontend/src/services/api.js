@@ -5,7 +5,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
  * @param {string} question - The user's question
  * @param {number} topK - Number of top results to return (default: 8)
  * @param {boolean} useLLM - Whether to use LLM for answer generation (default: true)
- * @returns {Promise<{answer: string, sources: string}>}
+ * @returns {Promise<{answer: string, sources: Array<{text: string, document_name: string, chunk_index: number, similarity_score: number}>}>}
  */
 export async function searchAndAnswer(question, topK = 8, useLLM = true) {
   try {

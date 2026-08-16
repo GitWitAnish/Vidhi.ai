@@ -120,7 +120,28 @@ function ChatMessage({ message }) {
 
                 {sourcesExpanded && (
                   <div className="sources-content">
-                    <ReactMarkdown>{message.sources || ""}</ReactMarkdown>
+                    {Array.isArray(message.sources) ? (
+                      message.sources.map((source, idx) => (
+                        <div key={idx} className="source-card">
+                          <div className="source-header">
+                            <FileText size={14} />
+                            <span className="source-doc-name">
+                              {source.document_name || "Unknown"}
+                            </span>
+                            {source.similarity_score != null && (
+                              <span className="source-score">
+                                {(source.similarity_score * 100).toFixed(1)}% match
+                              </span>
+                            )}
+                          </div>
+                          {source.text && (
+                            <p className="source-text">{source.text}</p>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <ReactMarkdown>{String(message.sources || "")}</ReactMarkdown>
+                    )}
                   </div>
                 )}
               </div>
