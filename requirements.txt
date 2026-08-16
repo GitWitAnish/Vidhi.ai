@@ -2,6 +2,12 @@
 python-dotenv>=1.0.1
 numpy>=2.0.0
 
+# FastAPI backend
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+pydantic-settings>=2.6.0
+
+
 # PDF text extraction
 pypdf>=5.1.0
 pymupdf>=1.25.0
@@ -15,8 +21,6 @@ faiss-cpu>=1.9.0
 # LLM API
 huggingface-hub>=0.27.0
 
-# Web interface
-streamlit>=1.41.0
 
 # Voice integration
 edge-tts>=6.1.18                   # Text-to-Speech
