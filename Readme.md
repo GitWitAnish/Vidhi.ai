@@ -64,37 +64,7 @@
 
 ---
 
----
 
-## Architecture
-
-```
-nyaya-exe/
-├── streamlit/          #   Alternative UI
-├── frontend/           #   React frontend
-├── backend/            #   FastAPI server
-├── scripts/            #   Core RAG logic
-│   ├── embedding.py    #   Text embeddings
-│   ├── vector.py       #   FAISS operations
-│   ├── llm_wrapper.py  #   LLaMA integration
-│   └── voice.py        #   TTS/STT
-├── database/           #   Vector index
-└── dataset/            #   Legal documents
-```
-
-## Future Roadmap
-
-- Full Nepali language support
-- Analytics dashboard
-- User authentication
-- Mobile app (React Native)
-- Integration with Nepal Law Commission
-- Real-time document updates
-- Lawyer consultation matching
-- Document generation (legal templates)
-- Multi-jurisdictional support
-
----
 
 ## Team
 
@@ -115,6 +85,11 @@ nyaya-exe/
       <em>ML/AI Engineer</em><br>
       <a href="https://github.com/GitWitAnish">GitHub</a>
     </td>
+     <td align="center">
+      <strong>Sandesh Subedi</strong><br>
+      <em>ML/AI Engineer</em><br>
+      <a href="https://github.com/Subedi-Sandesh">GitHub</a>
+    </td>
   </tr>
 </table>
 
@@ -127,22 +102,12 @@ nyaya-exe/
 - **HuggingFace** - For model hosting and inference API
 - **FAISS Team** - For the efficient vector similarity search library
 - **Sentence Transformers** - For pre-trained embedding models
-- **Streamlit** - For the amazing data app framework
 - **Open Source Community** - For all the libraries that made this possible
 
-### Resources & References
-
-- [Nepal Law Commission](https://lawcommission.gov.np/)
-- [LLaMA Documentation](https://llama.meta.com/)
-- [FAISS Documentation](https://faiss.ai/)
 
 ---
 
 
 <p align="center">
   <strong> Justice is everyone's right. (न्याय सबैको हक हो)</strong>
-</p>
-
-<p align="center">
-  Made with ❤️ and Passion
 </p>
