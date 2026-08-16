@@ -30,8 +30,8 @@ class FAISSStore:
             index_path: Path to store/load the FAISS index
         """
         self.index_path = index_path or settings.FAISS_INDEX_PATH
-        self.index_file = self.index_path / "index.faiss"
-        self.metadata_file = self.index_path / "metadata.json"
+        self.index_file = self.index_path / "legal_faiss.index"
+        self.metadata_file = self.index_path / "legal_faiss_meta.json"
         
         self.index: Optional[faiss.Index] = None
         self.metadata: List[Dict[str, Any]] = []

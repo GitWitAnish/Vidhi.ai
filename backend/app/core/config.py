@@ -1,4 +1,5 @@
 
+import os
 from pydantic_settings import BaseSettings
 from pathlib import Path
 from functools import lru_cache
@@ -37,6 +38,10 @@ class Settings(BaseSettings):
     CHUNK_OVERLAP: int = 50
     TOP_K_RESULTS: int = 5
     
+    # HuggingFace API settings
+    HUGGINGFACE_API_KEY: str = ""
+    HF_TOKEN: str = ""
+    
     # CORS settings
     CORS_ORIGINS: list = ["http://localhost:3000", "http://localhost:5173"]
     
@@ -56,6 +61,12 @@ def get_settings() -> Settings:
 
 # Global settings instance
 settings = get_settings()
+
+# Export HuggingFace API key to environment so os.getenv() picks it up
+if settings.HUGGINGFACE_API_KEY:
+    os.environ.setdefault("HUGGINGFACE_API_KEY", settings.HUGGINGFACE_API_KEY)
+if settings.HF_TOKEN:
+    os.environ.setdefault("HF_TOKEN", settings.HF_TOKEN)
 
 # Create necessary directories on startup
 settings.DATA_DIR.mkdir(parents=True, exist_ok=True)

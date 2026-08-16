@@ -9,7 +9,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
  */
 export async function searchAndAnswer(question, topK = 8, useLLM = true) {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/search`, {
+    const response = await fetch(`${API_BASE_URL}/ask`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

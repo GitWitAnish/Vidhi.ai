@@ -158,23 +158,31 @@ class RAGService:
             # Step 3: Extract context chunks
             context_chunks = [result["text"] for result in search_results]
             
-            # Step 4: Build RAG prompt
-            prompt = self.llm_service.build_rag_prompt(question, context_chunks)
-            
-            # Step 5: Generate answer
+            # Step 4: Generate answer (generate_answer builds the RAG prompt internally)
             logger.info("Generating answer with LLM")
-            answer = self.llm_service.generate_answer(prompt)
+            answer = self.llm_service.generate_answer(question, context_chunks)
             
-            # Step 6: Format sources
-            sources = [
-                {
-                    "text": result["text"][:500] + ("..." if len(result["text"]) > 500 else ""),
-                    "document_name": result["document_name"],
-                    "chunk_index": result["chunk_index"],
+            # Step 5: Format sources
+            # Handle both metadata schemas:
+            #   - Legacy (from scripts): {id, text, metadata: {filename, title, ...}}
+            #   - New (from upload route): {text, document_name, chunk_index, ...}
+            sources = []
+            for result in search_results:
+                meta = result.get("metadata", {})
+                doc_name = (
+                    result.get("document_name")
+                    or meta.get("filename")
+                    or meta.get("title")
+                    or "Unknown"
+                )
+                chunk_idx = result.get("chunk_index", result.get("id", 0))
+                text = result.get("text", "")
+                sources.append({
+                    "text": text[:500] + ("..." if len(text) > 500 else ""),
+                    "document_name": doc_name,
+                    "chunk_index": chunk_idx,
                     "similarity_score": round(result["similarity_score"], 4)
-                }
-                for result in search_results
-            ]
+                })
             
             processing_time = time.time() - start_time
             
