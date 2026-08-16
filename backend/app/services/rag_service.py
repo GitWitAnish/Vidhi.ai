@@ -9,7 +9,7 @@ from typing import List, Dict, Any, Tuple
 from pathlib import Path
 
 from app.core.config import settings
-from app.db.faiss_store import FAISSStore
+from app.stores.faiss_store import FAISSStore
 from app.utils.pdf_parser import PDFParser
 from app.utils.text_chunker import TextChunker, TextChunk
 from .embedding_service import EmbeddingService

@@ -18,9 +18,9 @@ class Settings(BaseSettings):
     
     # Paths
     BASE_DIR: Path = Path(__file__).resolve().parents[3]  # Project root
-    DATA_DIR: Path = BASE_DIR / "backend" / "data"
-    FAISS_INDEX_PATH: Path = DATA_DIR / "faiss_index"
-    DOCUMENTS_PATH: Path = DATA_DIR / "documents"
+    DATA_DIR: Path = BASE_DIR / "backend" / "database"
+    FAISS_INDEX_PATH: Path = DATA_DIR
+    DOCUMENTS_PATH: Path = BASE_DIR / "dataset" / "processed"
     
     # Embedding model settings
     EMBEDDING_MODEL: str = "sentence-transformers/all-MiniLM-L6-v2"
@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     CORS_ORIGINS: list = ["http://localhost:3000", "http://localhost:5173"]
     
     class Config:
-        env_file = ".env"
+        env_file = str(Path(__file__).resolve().parents[3] / "backend" / ".env")
         extra = "ignore"
 
 

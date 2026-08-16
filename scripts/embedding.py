@@ -13,8 +13,11 @@ import numpy as np
 from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
 
-# Load .env from project root
-_ENV_PATH = Path(__file__).resolve().parents[1] / ".env"
+# Load .env from backend first, then fallback to project root
+_ROOT = Path(__file__).resolve().parents[1]
+_ENV_PATH = _ROOT / "backend" / ".env"
+if not _ENV_PATH.exists():
+    _ENV_PATH = _ROOT / ".env"
 load_dotenv(_ENV_PATH)
 
 # Default embedding model from .env or fallback

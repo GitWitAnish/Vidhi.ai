@@ -17,7 +17,7 @@ if str(SCRIPTS) not in sys.path:
     sys.path.append(str(SCRIPTS))
 
 # Load .env
-load_dotenv(ROOT / ".env")
+load_dotenv(ROOT / "backend" / ".env")
 
 from embedding import EmbeddingModel, DEFAULT_EMBEDDING_MODEL
 from llm_wrapper import generate_answer, DEFAULT_LLM_MODEL
@@ -77,8 +77,8 @@ async def startup_event():
         print("[Startup] Embedding model loaded.")
 
         print("[Startup] Loading FAISS vector store...")
-        index_path = ROOT / "database" / "legal_faiss.index"
-        metadata_path = ROOT / "database" / "legal_faiss_meta.json"
+        index_path = ROOT / "backend" / "database" / "legal_faiss.index"
+        metadata_path = ROOT / "backend" / "database" / "legal_faiss_meta.json"
         print(f"[Startup] Index path: {index_path}, Metadata path: {metadata_path}")
 
         store = FaissVectorStore(
