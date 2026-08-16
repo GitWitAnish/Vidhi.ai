@@ -1,159 +1,263 @@
 """
-LLM service for generating answers using HuggingFace models.
-Supports local LLaMA models with optimized inference.
+LLM service for generating answers using HuggingFace Inference API.
+Matches scripts/llm_wrapper.py behavior with query type detection and context-aware prompts.
 """
 
 import logging
-from typing import List, Optional
-import torch
-from transformers import (
-    AutoModelForCausalLM, 
-    AutoTokenizer,
-    pipeline,
-    BitsAndBytesConfig
-)
+import os
+from typing import List, Optional, Dict
+from huggingface_hub import InferenceClient
 
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
+# Query type keywords matching scripts/llm_wrapper.py
+NAVIGATION_KEYWORDS = [
+    "how to", "how do i", "how can i", "steps to", "process for",
+    "where to", "which office", "documents required", "documents needed",
+    "apply for", "get a", "obtain", "register for", "registration",
+    "renew", "renewal", "what documents", "how much", "cost of",
+    "time required", "how long", "procedure", "kaha", "kasari",
+    "office address", "phone number", "contact"
+]
+
+LEGAL_KEYWORDS = [
+    "what is", "what are", "define", "definition", "according to",
+    "section", "article", "act says", "law says", "provision",
+    "constitutional", "legal rights", "punishment", "penalty",
+    "offense", "crime", "rights", "duties", "fundamental"
+]
+
+# System prompts for different query types (matching scripts/llm_wrapper.py)
+NAVIGATION_PROMPT = """You are a helpful government services assistant for Nepal.
+Your task is to guide users through government procedures, services, and processes.
+
+**CRITICAL RULES:**
+1. ONLY use information from the provided context. Do NOT use general knowledge.
+2. Your response MUST end with the TL;DR summary. Do NOT write anything after TL;DR.
+3. NEVER add a "Contact Information" section.
+4. NEVER say "unfortunately" or mention missing information.
+
+Guidelines:
+1. Provide clear, step-by-step instructions when explaining procedures.
+2. Include relevant details from the context naturally in your answer.
+3. Be practical and actionable.
+4. Use numbered lists for steps and bullet points for documents.
+5. End with "**TL;DR:**" summary - this MUST be your final output."""
+
+LEGAL_PROMPT = """You are a legal assistant specializing in Nepali law.
+Your task is to answer questions based STRICTLY on the provided legal document excerpts.
+
+**CRITICAL RULES:**
+1. ONLY use information from the provided context. Do NOT use general knowledge.
+2. Your response MUST end with the TL;DR summary. Do NOT write anything after TL;DR.
+3. NEVER add a "Contact Information" section.
+4. NEVER say "unfortunately" or mention missing information.
+5. NEVER add suggestions to "contact authorities" or "consult professionals".
+
+Guidelines:
+1. Answer using ONLY information from the provided context.
+2. Cite the source document name with section/article (e.g., "According to Section 38 of the Constitution of Nepal...").
+3. Be thorough but concise.
+4. End with "**TL;DR:**" summary - this MUST be your final output."""
+
+MIXED_PROMPT = """You are a helpful assistant specializing in Nepali law and government services.
+
+**CRITICAL RULES:**
+1. ONLY use information from the provided context. Do NOT use general knowledge.
+2. Your response MUST end with the TL;DR summary. Do NOT write anything after TL;DR.
+3. NEVER add a "Contact Information" section.
+4. NEVER say "unfortunately" or mention missing information.
+5. NEVER add suggestions to "contact authorities" or "consult professionals".
+
+Guidelines:
+1. For legal questions: Cite the source document name with section/article.
+2. For procedural questions: Provide step-by-step guidance when available.
+3. Include relevant details from the context naturally.
+4. End with "**TL;DR:**" summary - this MUST be your final output."""
+
 
 class LLMService:
     """
-    Handles LLM inference for answer generation.
-    Implements singleton pattern for efficient model loading.
+    Handles LLM inference using HuggingFace Inference API.
+    Implements singleton pattern and query type detection.
+    Matches scripts/llm_wrapper.py behavior.
     """
     
     _instance = None
-    _model = None
-    _tokenizer = None
-    _pipeline = None
+    _client = None
     
     def __new__(cls):
-        """Singleton pattern to ensure model is loaded only once."""
+        """Singleton pattern to ensure client is initialized only once."""
         if cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance
     
     def __init__(self):
-        """Initialize the LLM."""
-        if LLMService._model is None:
-            self._load_model()
+        """Initialize the HuggingFace Inference API client."""
+        if LLMService._client is None:
+            self._load_client()
     
-    def _load_model(self):
-        """
-        Load the LLaMA model with optimizations.
-        Uses 4-bit quantization for memory efficiency.
-        """
+    def _load_client(self):
+        """Initialize HuggingFace Inference API client."""
         try:
-            logger.info(f"Loading LLM: {settings.LLM_MODEL}")
+            api_key = os.getenv("HF_TOKEN") or os.getenv("HUGGINGFACE_API_KEY")
             
-            # Check for GPU availability
-            device = "cuda" if torch.cuda.is_available() else "cpu"
-            logger.info(f"Using device: {device}")
+            if not api_key:
+                raise RuntimeError(
+                    "HuggingFace API key not found. "
+                    "Set HF_TOKEN or HUGGINGFACE_API_KEY environment variable."
+                )
             
-            # Quantization config for memory efficiency (requires bitsandbytes)
-            if device == "cuda":
-                try:
-                    quantization_config = BitsAndBytesConfig(
-                        load_in_4bit=True,
-                        bnb_4bit_compute_dtype=torch.float16,
-                        bnb_4bit_use_double_quant=True,
-                        bnb_4bit_quant_type="nf4"
-                    )
-                    
-                    LLMService._tokenizer = AutoTokenizer.from_pretrained(
-                        settings.LLM_MODEL,
-                        trust_remote_code=True
-                    )
-                    
-                    LLMService._model = AutoModelForCausalLM.from_pretrained(
-                        settings.LLM_MODEL,
-                        quantization_config=quantization_config,
-                        device_map="auto",
-                        trust_remote_code=True
-                    )
-                except ImportError:
-                    logger.warning("bitsandbytes not available, loading without quantization")
-                    self._load_without_quantization(device)
-            else:
-                self._load_without_quantization(device)
-            
-            # Create pipeline for easier inference
-            LLMService._pipeline = pipeline(
-                "text-generation",
-                model=LLMService._model,
-                tokenizer=LLMService._tokenizer,
-                max_new_tokens=settings.LLM_MAX_NEW_TOKENS,
-                temperature=settings.LLM_TEMPERATURE,
-                top_p=settings.LLM_TOP_P,
-                do_sample=True,
-                pad_token_id=LLMService._tokenizer.eos_token_id
-            )
-            
-            logger.info("LLM loaded successfully")
+            LLMService._client = InferenceClient(api_key=api_key)
+            logger.info(f"Initialized HuggingFace Inference API client")
             
         except Exception as e:
-            logger.error(f"Failed to load LLM: {e}")
-            logger.warning("Falling back to mock LLM for development")
-            LLMService._model = "mock"
-            LLMService._tokenizer = "mock"
+            logger.error(f"Failed to initialize LLM client: {e}")
+            raise RuntimeError(f"Failed to initialize LLM client: {e}")
     
-    def _load_without_quantization(self, device: str):
-        """Load model without quantization for CPU or when bitsandbytes unavailable."""
-        LLMService._tokenizer = AutoTokenizer.from_pretrained(
-            settings.LLM_MODEL,
-            trust_remote_code=True
-        )
+    @property
+    def client(self) -> InferenceClient:
+        """Get the API client."""
+        if LLMService._client is None:
+            self._load_client()
+        return LLMService._client
+    
+    @staticmethod
+    def detect_query_type(question: str) -> str:
+        """
+        Detect query type: 'legal', 'navigation', or 'mixed'.
+        Matches scripts/llm_wrapper.py detect_query_type() logic.
         
-        LLMService._model = AutoModelForCausalLM.from_pretrained(
-            settings.LLM_MODEL,
-            torch_dtype=torch.float16 if device == "cuda" else torch.float32,
-            device_map="auto" if device == "cuda" else None,
-            trust_remote_code=True,
-            low_cpu_mem_usage=True
-        )
+        Args:
+            question: User's question
+            
+        Returns:
+            Query type: 'legal', 'navigation', or 'mixed'
+        """
+        question_lower = question.lower()
+        
+        # Count keyword matches
+        nav_score = sum(1 for kw in NAVIGATION_KEYWORDS if kw in question_lower)
+        legal_score = sum(1 for kw in LEGAL_KEYWORDS if kw in question_lower)
+        
+        if nav_score > legal_score:
+            return "navigation"
+        elif legal_score > nav_score:
+            return "legal"
+        else:
+            return "mixed"
+    
+    def get_system_prompt(self, query_type: str) -> str:
+        """
+        Get the appropriate system prompt based on query type.
+        
+        Args:
+            query_type: One of 'legal', 'navigation', 'mixed'
+            
+        Returns:
+            System prompt string
+        """
+        if query_type == "navigation":
+            return NAVIGATION_PROMPT
+        elif query_type == "legal":
+            return LEGAL_PROMPT
+        else:
+            return MIXED_PROMPT
+    
+    def build_rag_prompt(
+        self, 
+        question: str, 
+        context_chunks: List[str],
+        chunk_metadata: Optional[List[Dict]] = None
+    ) -> tuple[str, str]:
+        """
+        Build a RAG prompt with context and question.
+        Matches scripts/llm_wrapper.py context formatting.
+        
+        Args:
+            question: User's question
+            context_chunks: List of relevant text chunks
+            chunk_metadata: Optional metadata for each chunk (for source attribution)
+            
+        Returns:
+            Tuple of (system_prompt, user_message)
+        """
+        # Detect query type and get appropriate system prompt
+        query_type = self.detect_query_type(question)
+        system_prompt = self.get_system_prompt(query_type)
+        
+        # Format context with source attribution (matching scripts/llm_wrapper.py)
+        if chunk_metadata:
+            context_parts = []
+            for i, (chunk, meta) in enumerate(zip(context_chunks, chunk_metadata)):
+                source = meta.get("title") or meta.get("filename") or "Unknown Source"
+                context_parts.append(f"[Source: {source}]\n{chunk}")
+            context = "\n\n---\n\n".join(context_parts)
+        else:
+            context = "\n\n---\n\n".join(context_chunks)
+        
+        # Build user message
+        user_message = f"""Context from Nepali Legal Documents:
+
+{context}
+
+Based on the above context, please answer the following question. If the answer cannot be found in the context, say so clearly.
+
+Question: {question}"""
+        
+        return system_prompt, user_message
     
     def generate_answer(
         self, 
-        prompt: str,
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None
+        question: str,
+        context_chunks: List[str],
+        chunk_metadata: Optional[List[Dict]] = None,
+        model: Optional[str] = None,
+        max_tokens: int = 1024,
+        temperature: float = 0.3,
     ) -> str:
         """
-        Generate an answer from the given prompt.
+        Generate an answer using HuggingFace Inference API.
+        Matches scripts/llm_wrapper.py generate_answer() logic.
         
         Args:
-            prompt: The formatted prompt with context and question
-            max_tokens: Override default max tokens
-            temperature: Override default temperature
+            question: User's question
+            context_chunks: List of relevant context chunks
+            chunk_metadata: Optional metadata for source attribution
+            model: Override model name (default from settings)
+            max_tokens: Maximum tokens in response
+            temperature: Sampling temperature
             
         Returns:
-            Generated answer text
+            Generated answer string
         """
-        # Mock response for development without GPU
-        if LLMService._model == "mock":
-            return self._mock_generate(prompt)
-        
         try:
-            # Override generation params if provided
-            gen_kwargs = {}
-            if max_tokens:
-                gen_kwargs["max_new_tokens"] = max_tokens
-            if temperature:
-                gen_kwargs["temperature"] = temperature
+            model = model or settings.LLM_MODEL
             
-            # Generate response
-            response = LLMService._pipeline(prompt, **gen_kwargs)
+            # Build RAG prompt with appropriate system prompt
+            system_prompt, user_message = self.build_rag_prompt(
+                question, 
+                context_chunks,
+                chunk_metadata
+            )
             
-            # Extract generated text
-            generated_text = response[0]["generated_text"]
+            logger.info(f"Generating answer using {model} (query_type: {self.detect_query_type(question)})")
             
-            # Remove the prompt from the response
-            if generated_text.startswith(prompt):
-                answer = generated_text[len(prompt):].strip()
-            else:
-                answer = generated_text.strip()
+            # Call HuggingFace Inference API
+            response = self.client.chat_completion(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_message},
+                ],
+                model=model,
+                max_tokens=max_tokens,
+                temperature=temperature,
+            )
+            
+            answer = response.choices[0].message.content.strip()
+            logger.info("Answer generated successfully")
             
             return answer
             
@@ -161,76 +265,6 @@ class LLMService:
             logger.error(f"Error generating answer: {e}")
             return f"I apologize, but I encountered an error generating the response: {str(e)}"
     
-    def _mock_generate(self, prompt: str) -> str:
-        """
-        Generate a mock response for development/testing.
-        Useful when running without GPU or before model download.
-        """
-        # Extract question from prompt
-        if "Question:" in prompt:
-            question = prompt.split("Question:")[-1].split("\n")[0].strip()
-        else:
-            question = "your question"
-        
-        return (
-            f"Based on the provided context about Nepali legal documents, "
-            f"here is the answer to {question}:\n\n"
-            f"This is a development response. To get actual LLM-generated answers, "
-            f"please ensure you have:\n"
-            f"1. A GPU with sufficient VRAM (8GB+ recommended)\n"
-            f"2. The LLaMA model downloaded from HuggingFace\n"
-            f"3. Proper authentication with HuggingFace (for gated models)\n\n"
-            f"The context provided contains relevant information from the legal documents."
-        )
-    
-    def build_rag_prompt(
-        self, 
-        question: str, 
-        context_chunks: List[str],
-        system_prompt: Optional[str] = None
-    ) -> str:
-        """
-        Build a RAG prompt with context and question.
-        
-        Args:
-            question: User's question
-            context_chunks: List of relevant text chunks
-            system_prompt: Optional custom system prompt
-            
-        Returns:
-            Formatted prompt string
-        """
-        if system_prompt is None:
-            system_prompt = (
-                "You are Nyaya.exe, an expert AI assistant specializing in Nepali laws "
-                "and legal documents. Your role is to provide accurate, helpful information "
-                "based on the legal context provided. Always cite your sources when possible "
-                "and acknowledge if something is unclear or not covered in the provided context."
-            )
-        
-        # Format context
-        context_text = "\n\n".join([
-            f"[Source {i+1}]\n{chunk}" 
-            for i, chunk in enumerate(context_chunks)
-        ])
-        
-        # Build prompt in LLaMA chat format
-        prompt = f"""<s>[INST] <<SYS>>
-{system_prompt}
-<</SYS>>
-
-Context from Nepali Legal Documents:
-{context_text}
-
-Based on the above context, please answer the following question. If the answer cannot be found in the context, say so clearly.
-
-Question: {question}
-[/INST]
-
-Answer:"""
-        
-        return prompt
-    
     def is_loaded(self) -> bool:
-        """Check if the LLM is properly loaded."""
-        return LLMService._model is not None
+        """Check if the LLM client is properly initialized."""
+        return LLMService._client is not None

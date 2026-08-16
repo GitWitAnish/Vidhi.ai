@@ -24,19 +24,132 @@ class TextChunk:
 class TextChunker:
     """
     Splits text into overlapping chunks for embedding and retrieval.
-    Uses a sliding window approach with configurable size and overlap.
+    Implements section-aware chunking matching scripts/clean.py strategy.
+    Preserves legal document structure (Part/Chapter/Section/Article).
     """
     
-    def __init__(self, chunk_size: int = 500, chunk_overlap: int = 50):
+    # Word-fixing dictionary matching scripts/clean.py (70+ patterns)
+    WORD_FIXES = {
+        r'\bA ct\b': 'Act',
+        r'\bof fence': 'offence',
+        r'\bOf fence': 'Offence',
+        r'\ba ct\b': 'act',
+        r'\bth is\b': 'this',
+        r'\bTh is\b': 'This',
+        r'\bth at\b': 'that',
+        r'\bTh at\b': 'That',
+        r'\bth e\b': 'the',
+        r'\bTh e\b': 'The',
+        r'\bwh ich\b': 'which',
+        r'\bWh ich\b': 'Which',
+        r'\bsh all\b': 'shall',
+        r'\bSh all\b': 'Shall',
+        r'\bwh o\b': 'who',
+        r'\bWh o\b': 'Who',
+        r'\ba nd\b': 'and',
+        r'\bA nd\b': 'And',
+        r'\bor der\b': 'order',
+        r'\bOr der\b': 'Order',
+        r'\bin to\b': 'into',
+        r'\bIn to\b': 'Into',
+        r'\bhe lp': 'help',
+        r'\bHe lp': 'Help',
+        r'\bshe lter': 'shelter',
+        r'\bShe lter': 'Shelter',
+        r'\ba ny\b': 'any',
+        r'\bA ny\b': 'Any',
+        r'\bma y\b': 'may',
+        r'\bMa y\b': 'May',
+        r'\bbe ing\b': 'being',
+        r'\bBe ing\b': 'Being',
+        r'\ba lso\b': 'also',
+        r'\bA lso\b': 'Also',
+        r'\bin cludes?\b': 'include',
+        r'\bIn cludes?\b': 'Include',
+        r'\ba uthoriz': 'authoriz',
+        r'\bA uthoriz': 'Authoriz',
+        r'\ba uthority': 'authority',
+        r'\bA uthority': 'Authority',
+        r'\ba pprehension': 'apprehension',
+        r'\bA pprehension': 'Apprehension',
+        r'\ba ssist': 'assist',
+        r'\bA ssist': 'Assist',
+        r'\ba mend': 'amend',
+        r'\bA mend': 'Amend',
+        r'\ba mong': 'among',
+        r'\bA mong': 'Among',
+        r'\ba pplic': 'applic',
+        r'\bA pplic': 'Applic',
+        r'\ba rticle': 'article',
+        r'\bA rticle': 'Article',
+        r'\ba rms\b': 'arms',
+        r'\bA rms\b': 'Arms',
+        r'\ba mmunition': 'ammunition',
+        r'\bA mmunition': 'Ammunition',
+        r'\ba ircraft': 'aircraft',
+        r'\bA ircraft': 'Aircraft',
+        r'\ba bandon': 'abandon',
+        r'\bA bandon': 'Abandon',
+        r'\ba betment': 'abetment',
+        r'\bA betment': 'Abetment',
+        r'\ba gainst': 'against',
+        r'\bA gainst': 'Against',
+        r'\ba djudic': 'adjudic',
+        r'\bA djudic': 'Adjudic',
+        r'\ba dult': 'adult',
+        r'\bA dult': 'Adult',
+        r'\bfor gery': 'forgery',
+        r'\bFor gery': 'Forgery',
+        r'\bimprison ment': 'imprisonment',
+        r'\bImprison ment': 'Imprisonment',
+        r'\bhe inous': 'heinous',
+        r'\bHe inous': 'Heinous',
+        r'\bat tempt': 'attempt',
+        r'\bAt tempt': 'Attempt',
+        r'\bin cest': 'incest',
+        r'\bIn cest': 'Incest',
+        r'\bin terest': 'interest',
+        r'\bIn terest': 'Interest',
+        r'\bin tent': 'intent',
+        r'\bIn tent': 'Intent',
+        r'\bmainta in\b': 'maintain',
+        r'\bMainta in\b': 'Maintain',
+        r'\bsup ply': 'supply',
+        r'\bSup ply': 'Supply',
+        r'\bthe refore': 'therefore',
+        r'\bThe refore': 'Therefore',
+        # Common concatenations
+        r'\bofthe\b': 'of the',
+        r'\btothe\b': 'to the',
+        r'\binthe\b': 'in the',
+        r'\bforthe\b': 'for the',
+        r'\bandthe\b': 'and the',
+        r'\borthe\b': 'or the',
+        r'\bbythe\b': 'by the',
+        r'\bonthe\b': 'on the',
+        r'\batthe\b': 'at the',
+        r'\basthe\b': 'as the',
+        r'\bifthe\b': 'if the',
+    }
+    
+    def __init__(
+        self, 
+        chunk_size: int = 2000,  # Default from scripts/clean.py
+        chunk_overlap: int = 400,  # Default from scripts/clean.py
+        min_chunk_size: int = 100  # Default from scripts/clean.py
+    ):
         """
         Initialize the chunker with specified parameters.
+        Matches scripts/clean.py prepare_for_rag() defaults.
         
         Args:
-            chunk_size: Target size of each chunk in characters
-            chunk_overlap: Number of characters to overlap between chunks
+            chunk_size: Target size of each chunk (2000 default)
+            chunk_overlap: Fixed overlap in characters (400 default)
+            min_chunk_size: Minimum chunk size to keep (100 default)
         """
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
+        self.min_chunk_size = min_chunk_size
         
         if chunk_overlap >= chunk_size:
             raise ValueError("Chunk overlap must be less than chunk size")
@@ -47,8 +160,8 @@ class TextChunker:
         document_name: str = "unknown"
     ) -> List[TextChunk]:
         """
-        Split text into overlapping chunks.
-        Attempts to break at sentence boundaries when possible.
+        Split text into overlapping chunks using section-aware strategy.
+        Matches scripts/clean.py prepare_for_rag() logic.
         
         Args:
             text: The text to chunk
@@ -61,55 +174,124 @@ class TextChunker:
             logger.warning(f"Empty text provided for chunking: {document_name}")
             return []
         
-        # Clean the text
+        # Clean and fix text
         text = self._clean_text(text)
+        text = self._fix_words(text)
+        
+        # Extract metadata before chunking
+        metadata = self._extract_metadata(text, document_name)
+        
+        # Split by major sections (Part/Chapter/Section/Article)
+        major_sections = re.split(
+            r"\n(?=(?:Part|Chapter|Section|Article)\s*[-:]?\s*\d+)", 
+            text
+        )
         
         chunks = []
-        start = 0
         chunk_index = 0
+        current_accumulated = ""
         
-        while start < len(text):
-            # Calculate end position
-            end = start + self.chunk_size
+        for section in major_sections:
+            section = section.strip()
+            if not section:
+                continue
             
-            # If we're not at the end, try to find a good break point
-            if end < len(text):
-                # Look for sentence endings (., !, ?) within the last 20% of the chunk
-                search_start = end - int(self.chunk_size * 0.2)
-                search_text = text[search_start:end]
-                
-                # Find last sentence boundary
-                last_break = self._find_last_sentence_break(search_text)
-                
-                if last_break != -1:
-                    end = search_start + last_break + 1
+            # If section is very small, accumulate with next
+            if len(section) < self.min_chunk_size:
+                current_accumulated += "\n" + section if current_accumulated else section
+                continue
+            
+            # Add any accumulated small sections
+            if current_accumulated:
+                section = current_accumulated + "\n" + section
+                current_accumulated = ""
+            
+            if len(section) <= self.chunk_size:
+                # Section fits in one chunk
+                chunk_text = section.strip()
+                if len(chunk_text) >= self.min_chunk_size:
+                    chunk = TextChunk(
+                        text=chunk_text,
+                        index=chunk_index,
+                        start_char=0,
+                        end_char=len(chunk_text),
+                        metadata={
+                            **metadata,
+                            "chunk_index": chunk_index,
+                            "char_count": len(chunk_text)
+                        }
+                    )
+                    chunks.append(chunk)
+                    chunk_index += 1
             else:
-                end = len(text)
-            
-            # Extract chunk text
-            chunk_text = text[start:end].strip()
-            
-            if chunk_text:  # Only add non-empty chunks
+                # Section is large, split with word-based overlap
+                words = section.split()
+                current_chunk = []
+                current_length = 0
+                
+                for word in words:
+                    current_chunk.append(word)
+                    current_length += len(word) + 1
+                    
+                    if current_length >= self.chunk_size:
+                        chunk_text = " ".join(current_chunk).strip()
+                        if len(chunk_text) >= self.min_chunk_size:
+                            chunk = TextChunk(
+                                text=chunk_text,
+                                index=chunk_index,
+                                start_char=0,
+                                end_char=len(chunk_text),
+                                metadata={
+                                    **metadata,
+                                    "chunk_index": chunk_index,
+                                    "char_count": len(chunk_text)
+                                }
+                            )
+                            chunks.append(chunk)
+                            chunk_index += 1
+                        
+                        # Keep last part for overlap
+                        overlap_words = int(len(current_chunk) * (self.chunk_overlap / self.chunk_size))
+                        current_chunk = current_chunk[-overlap_words:]
+                        current_length = sum(len(w) + 1 for w in current_chunk)
+                
+                if current_chunk:
+                    remaining = " ".join(current_chunk).strip()
+                    if len(remaining) >= self.min_chunk_size:
+                        chunk = TextChunk(
+                            text=remaining,
+                            index=chunk_index,
+                            start_char=0,
+                            end_char=len(remaining),
+                            metadata={
+                                **metadata,
+                                "chunk_index": chunk_index,
+                                "char_count": len(remaining)
+                            }
+                        )
+                        chunks.append(chunk)
+                        chunk_index += 1
+        
+        # Handle remaining accumulated content
+        if current_accumulated and len(current_accumulated) >= self.min_chunk_size:
+            if chunks:
+                # Append to last chunk
+                last_chunk = chunks[-1]
+                last_chunk.text = last_chunk.text + "\n" + current_accumulated
+                last_chunk.metadata["char_count"] = len(last_chunk.text)
+            else:
                 chunk = TextChunk(
-                    text=chunk_text,
+                    text=current_accumulated,
                     index=chunk_index,
-                    start_char=start,
-                    end_char=end,
+                    start_char=0,
+                    end_char=len(current_accumulated),
                     metadata={
-                        "document_name": document_name,
-                        "chunk_index": chunk_index,
-                        "char_count": len(chunk_text)
+                        **metadata,
+                        "chunk_index": 0,
+                        "char_count": len(current_accumulated)
                     }
                 )
                 chunks.append(chunk)
-                chunk_index += 1
-            
-            # Move start position with overlap
-            start = end - self.chunk_overlap
-            
-            # Prevent infinite loop
-            if start >= len(text) - self.chunk_overlap:
-                break
         
         logger.info(
             f"Created {len(chunks)} chunks from {document_name} "
@@ -121,6 +303,7 @@ class TextChunker:
     def _clean_text(self, text: str) -> str:
         """
         Clean and normalize text for better chunking.
+        Matches scripts/clean.py logic.
         
         Args:
             text: Raw text to clean
@@ -144,55 +327,89 @@ class TextChunker:
         
         return text.strip()
     
-    def _find_last_sentence_break(self, text: str) -> int:
+    def _fix_words(self, text: str) -> str:
         """
-        Find the last sentence boundary in the text.
+        Apply word-fix patterns to correct OCR artifacts.
+        Matches scripts/clean.py WORD_FIXES logic.
         
         Args:
-            text: Text to search for sentence breaks
+            text: Text to fix
             
         Returns:
-            Index of last sentence break, or -1 if not found
+            Text with fixes applied
         """
-        # Look for sentence endings followed by space or end
-        matches = list(re.finditer(r'[.!?]\s', text))
+        for pattern, replacement in self.WORD_FIXES.items():
+            text = re.sub(pattern, replacement, text)
         
-        if matches:
-            return matches[-1].start()
+        return text
+    
+    def _extract_metadata(self, text: str, filename: str) -> Dict[str, str]:
+        """
+        Extract metadata from document.
+        Matches scripts/clean.py extract_metadata() logic.
         
-        # If no sentence break, try to break at paragraph
-        newline_pos = text.rfind('\n')
-        if newline_pos != -1:
-            return newline_pos
+        Args:
+            text: Document text
+            filename: Source filename
+            
+        Returns:
+            Metadata dictionary
+        """
+        metadata = {"filename": filename}
         
-        return -1
+        # Extract Act name from title (first few lines)
+        lines = text.split("\n")[:10]
+        for line in lines:
+            if "Act" in line and len(line.strip()) > 10:
+                metadata["title"] = line.strip()
+                break
+        
+        # Extract Act number
+        act_num_match = re.search(
+            r"Act\s+number\s+(\d+)\s+of\s+the\s+year\s+(\d+)",
+            text,
+            re.IGNORECASE
+        )
+        if act_num_match:
+            metadata["act_number"] = act_num_match.group(1)
+            metadata["year"] = act_num_match.group(2)
+        
+        # Extract date
+        date_match = re.search(
+            r"Date of (Authentication|Publication)[^\n]*\n([^\n]+)",
+            text,
+            re.IGNORECASE
+        )
+        if date_match:
+            metadata["date"] = date_match.group(2).strip()
+        
+        return metadata
     
     def chunk_by_paragraphs(
         self, 
         text: str, 
-        document_name: str = "unknown",
-        min_chunk_size: int = 100
+        document_name: str = "unknown"
     ) -> List[TextChunk]:
         """
         Alternative chunking strategy that preserves paragraph boundaries.
-        Combines short paragraphs until chunk_size is reached.
         
         Args:
             text: The text to chunk
             document_name: Name of the source document
-            min_chunk_size: Minimum size for a chunk
             
         Returns:
             List of TextChunk objects
         """
         text = self._clean_text(text)
+        text = self._fix_words(text)
+        metadata = self._extract_metadata(text, document_name)
+        
         paragraphs = text.split('\n\n')
         
         chunks = []
         current_chunk = []
         current_size = 0
         chunk_index = 0
-        start_char = 0
         
         for para in paragraphs:
             para = para.strip()
@@ -207,17 +424,16 @@ class TextChunker:
                 chunk = TextChunk(
                     text=chunk_text,
                     index=chunk_index,
-                    start_char=start_char,
-                    end_char=start_char + len(chunk_text),
+                    start_char=0,
+                    end_char=len(chunk_text),
                     metadata={
-                        "document_name": document_name,
+                        **metadata,
                         "chunk_index": chunk_index,
                         "char_count": len(chunk_text)
                     }
                 )
                 chunks.append(chunk)
                 chunk_index += 1
-                start_char += len(chunk_text) + 2
                 current_chunk = []
                 current_size = 0
             
@@ -227,14 +443,14 @@ class TextChunker:
         # Don't forget the last chunk
         if current_chunk:
             chunk_text = '\n\n'.join(current_chunk)
-            if len(chunk_text) >= min_chunk_size:
+            if len(chunk_text) >= self.min_chunk_size:
                 chunk = TextChunk(
                     text=chunk_text,
                     index=chunk_index,
-                    start_char=start_char,
-                    end_char=start_char + len(chunk_text),
+                    start_char=0,
+                    end_char=len(chunk_text),
                     metadata={
-                        "document_name": document_name,
+                        **metadata,
                         "chunk_index": chunk_index,
                         "char_count": len(chunk_text)
                     }

@@ -17,10 +17,12 @@ class EmbeddingService:
     """
     Handles text-to-embedding conversion using sentence-transformers.
     Implements singleton pattern for efficient model loading.
+    Matches scripts/embedding.py behavior with conditional normalization.
     """
     
     _instance = None
     _model = None
+    _normalize = True  # Default normalization flag
     
     def __new__(cls):
         """Singleton pattern to ensure model is loaded only once."""
@@ -28,9 +30,14 @@ class EmbeddingService:
             cls._instance = super().__new__(cls)
         return cls._instance
     
-    def __init__(self):
-        """Initialize the embedding model."""
+    def __init__(self, normalize: bool = True):
+        """Initialize the embedding model.
+        
+        Args:
+            normalize: Whether to normalize embeddings (default True)
+        """
         if EmbeddingService._model is None:
+            EmbeddingService._normalize = normalize
             self._load_model()
     
     def _load_model(self):
@@ -60,6 +67,7 @@ class EmbeddingService:
     def embed_text(self, text: str) -> np.ndarray:
         """
         Convert a single text to embedding vector.
+        Uses conditional normalization matching scripts/embedding.py.
         
         Args:
             text: Input text to embed
@@ -73,7 +81,7 @@ class EmbeddingService:
         embedding = self.model.encode(
             text,
             convert_to_numpy=True,
-            normalize_embeddings=True,  # For cosine similarity
+            normalize_embeddings=EmbeddingService._normalize,  # Conditional
             show_progress_bar=False
         )
         
@@ -115,7 +123,7 @@ class EmbeddingService:
         embeddings = self.model.encode(
             valid_texts,
             convert_to_numpy=True,
-            normalize_embeddings=True,
+            normalize_embeddings=EmbeddingService._normalize,  # Conditional (matches scripts/embedding.py)
             batch_size=batch_size,
             show_progress_bar=show_progress
         )

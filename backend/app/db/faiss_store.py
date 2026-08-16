@@ -114,14 +114,18 @@ class FAISSStore:
     def add_embeddings(
         self, 
         embeddings: np.ndarray, 
-        metadata_list: List[Dict[str, Any]]
+        metadata_list: List[Dict[str, Any]],
+        already_normalized: bool = False
     ) -> int:
         """
         Add embeddings and their metadata to the index.
+        Matches scripts/vector.py behavior with conditional normalization.
         
         Args:
             embeddings: numpy array of shape (n, dimension)
             metadata_list: List of metadata dicts for each embedding
+            already_normalized: If True, assumes embeddings are already normalized
+                               If False, normalizes them (matches scripts logic)
             
         Returns:
             Number of embeddings added
@@ -139,8 +143,10 @@ class FAISSStore:
             )
         
         with self._lock:
-            # Normalize embeddings for cosine similarity
-            faiss.normalize_L2(embeddings)
+            # Conditional normalization matching scripts/vector.py behavior
+            # If embeddings are NOT already normalized, normalize them
+            if not already_normalized:
+                faiss.normalize_L2(embeddings)
             
             # Add to index
             self.index.add(embeddings)
@@ -155,14 +161,17 @@ class FAISSStore:
     def search(
         self, 
         query_embedding: np.ndarray, 
-        top_k: int = 5
+        top_k: int = 5,
+        min_score: float = 0.3
     ) -> List[Dict[str, Any]]:
         """
         Search for similar vectors in the index.
+        Matches scripts/vector.py search behavior with score filtering.
         
         Args:
             query_embedding: Query vector of shape (1, dimension) or (dimension,)
             top_k: Number of results to return
+            min_score: Minimum similarity score threshold (default 0.3 like scripts)
             
         Returns:
             List of results with metadata and similarity scores
@@ -178,27 +187,35 @@ class FAISSStore:
         # Normalize query for cosine similarity
         faiss.normalize_L2(query_embedding)
         
-        # Adjust top_k if we have fewer vectors
-        actual_k = min(top_k, self.index.ntotal)
+        # Fetch 2x top_k to account for filtering by score (matches scripts/vector.py)
+        fetch_k = min(top_k * 2, self.index.ntotal)
         
         with self._lock:
             # Search
-            distances, indices = self.index.search(query_embedding, actual_k)
+            distances, indices = self.index.search(query_embedding, fetch_k)
         
         results = []
         for i, (dist, idx) in enumerate(zip(distances[0], indices[0])):
             if idx == -1:  # FAISS returns -1 for empty slots
                 continue
+            
+            # Filter by min_score (matches scripts/vector.py behavior)
+            if float(dist) < min_score:
+                continue
                 
             result = {
-                "rank": i + 1,
+                "rank": len(results) + 1,
                 "similarity_score": float(dist),
                 "index": int(idx),
                 **self.metadata[idx]
             }
             results.append(result)
+            
+            # Stop once we have enough good results
+            if len(results) >= top_k:
+                break
         
-        logger.debug(f"Search returned {len(results)} results")
+        logger.debug(f"Search returned {len(results)} results (min_score threshold: {min_score})")
         return results
     
     def delete_document(self, document_name: str) -> int:
