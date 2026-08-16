@@ -43,7 +43,8 @@ class Settings(BaseSettings):
     HF_TOKEN: str = ""
     
     # CORS settings
-    CORS_ORIGINS: list = ["http://localhost:3000", "http://localhost:5173"]
+    FRONTEND_URL: str = ""  # Set in Render env vars (e.g. https://vidhi-ai-frontend.onrender.com)
+    CORS_ORIGINS: list = ["http://localhost:3000", "http://localhost:5173", "https://team-pdf.vercel.app"]
     
     class Config:
         env_file = str(Path(__file__).resolve().parents[3] / "backend" / ".env")
@@ -72,3 +73,7 @@ if settings.HF_TOKEN:
 settings.DATA_DIR.mkdir(parents=True, exist_ok=True)
 settings.FAISS_INDEX_PATH.mkdir(parents=True, exist_ok=True)
 settings.DOCUMENTS_PATH.mkdir(parents=True, exist_ok=True)
+
+# Add deployed frontend URL to CORS origins
+if settings.FRONTEND_URL and settings.FRONTEND_URL not in settings.CORS_ORIGINS:
+    settings.CORS_ORIGINS.append(settings.FRONTEND_URL)
