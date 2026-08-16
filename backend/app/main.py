@@ -31,15 +31,16 @@ async def lifespan(app: FastAPI):
     logger.info(f"Debug mode: {settings.DEBUG}")
     logger.info(f"Data directory: {settings.DATA_DIR}")
     
-    # Pre-load services (optional - comment out for faster startup)
-    # This ensures models are loaded before first request
-    try:
-        from app.services.rag_service import RAGService
-        rag_service = RAGService()
-        stats = rag_service.get_index_stats()
-        logger.info(f"FAISS index loaded: {stats['total_chunks']} chunks from {stats['total_documents']} documents")
-    except Exception as e:
-        logger.warning(f"Failed to pre-load services: {e}")
+    # NOTE: Model pre-loading disabled to reduce memory usage on Render free tier.
+    # The RAG service will load lazily on the first request instead.
+    # Uncomment below for faster first-request response (requires more RAM).
+    # try:
+    #     from app.services.rag_service import RAGService
+    #     rag_service = RAGService()
+    #     stats = rag_service.get_index_stats()
+    #     logger.info(f"FAISS index loaded: {stats['total_chunks']} chunks from {stats['total_documents']} documents")
+    # except Exception as e:
+    #     logger.warning(f"Failed to pre-load services: {e}")
     
     yield
     
