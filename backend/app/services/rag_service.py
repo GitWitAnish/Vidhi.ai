@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 class RAGService:
     """
     Main RAG service that coordinates document processing,
-    embedding, retrieval, and answer generation.
+    1edding, retrieval, and answer generation.
     """
     
     def __init__(self):

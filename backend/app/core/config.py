@@ -34,9 +34,9 @@ class Settings(BaseSettings):
     LLM_TOP_P: float = 0.9
     
     # RAG settings
-    CHUNK_SIZE: int = 500
-    CHUNK_OVERLAP: int = 50
-    TOP_K_RESULTS: int = 5
+    CHUNK_SIZE: int = 2000
+    CHUNK_OVERLAP: int = 400
+    TOP_K_RESULTS: int = 8
     
     # HuggingFace API settings
     HUGGINGFACE_API_KEY: str = ""
